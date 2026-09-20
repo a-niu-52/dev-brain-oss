@@ -69,4 +69,21 @@ grep -q '归档原因' "$ROOT/archive/README.md"
 grep -q '^alwaysApply: true$' "$ROOT/adapters/cursor/dev-brain.mdc"
 grep -q '@.*core/development-principles.md' "$ROOT/adapters/claude/CLAUDE.md"
 
+for skill in code-review debugging git-delivery project-onboarding extract-project-knowledge targeted-verification cross-platform-contract; do
+  file="$ROOT/skills/$skill/SKILL.md"
+  test -f "$file" || { echo "缺少 Skill: $skill" >&2; exit 1; }
+  head -n 1 "$file" | grep -q '^---$'
+  grep -q "^name: $skill$" "$file"
+  grep -q '^description: .\+' "$file"
+done
+
+for playbook in start-new-project fix-bug deliver-feature extract-project-knowledge; do
+  test -f "$ROOT/playbooks/$playbook.md" || { echo "缺少 Playbook: $playbook" >&2; exit 1; }
+done
+
+if grep -R 'archive/' "$ROOT/adapters" "$ROOT/profiles" "$ROOT/skills"; then
+  echo '自动加载入口不得引用 archive/' >&2
+  exit 1
+fi
+
 echo '内容契约检查通过'

@@ -8,4 +8,4 @@
 - 远程操作失败时保留现场，报告当前分支、状态、未推送提交和远程地址。
 - 修改完成后只根据新鲜验证输出报告结果。
 - 可按需读取 `~/.dev-brain/repo/context/`、`core/`、`profiles/`、`projects/`、`prompts/`、`references/` 和 `playbooks/`。
-- 新经验先进入 `inbox/`；`archive/` 内容不自动加载。
+- 新经验先进入 `inbox/`；历史资料默认不主动读取。

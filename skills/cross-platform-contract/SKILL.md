@@ -1,0 +1,12 @@
+---
+name: cross-platform-contract
+description: 对照调用方协议检查 iOS、Android 和 HarmonyOS 桥接的一致性。用于 H5 与原生能力、多端 SDK 或 WebView 桥接变更时。
+---
+
+# Cross Platform Contract
+
+1. 以 H5 或调用方协议为基线，读取适配层和每个平台实现。
+2. 逐平台核对方法名、参数类型、返回值、回调、错误、超时和降级。
+3. 检查成功、失败、取消、重复调用和无原生能力场景。
+4. 输出协议差异表、受影响调用方和最小验证矩阵。
+5. 不因为一个平台通过就声称跨平台通过。
