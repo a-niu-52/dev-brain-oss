@@ -1,0 +1,8 @@
+local/
+.dev-brain/
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+.DS_Store

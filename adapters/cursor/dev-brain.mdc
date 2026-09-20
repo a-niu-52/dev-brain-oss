@@ -1,0 +1,14 @@
+---
+description: 个人开发习惯、Git 安全规则和交付约定
+globs:
+alwaysApply: true
+---
+
+# Dev Brain
+
+- 先读取项目规则和真实配置，再修改代码。
+- 项目规则优先于个人通用规则和技术栈 Profile。
+- 保留已有本地修改，不自动 stash、reset、覆盖或迁移。
+- 未经用户明确确认，不执行 `git push`。
+- 修改后运行与风险相称的验证，并报告新鲜结果。
+- 个人详细知识位于 `~/.dev-brain/repo/`，项目知识按需读取。
