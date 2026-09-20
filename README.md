@@ -17,6 +17,8 @@
 
 ## 安装
 
+先把这个私有仓库克隆到本机；它是唯一来源，不把全局配置文件当作知识库副本。
+
 macOS、Linux 或 WSL：
 
 ```bash
@@ -35,6 +37,14 @@ pwsh -NoProfile -File .\scripts\validate.ps1
 
 安装后重启 Codex、Cursor 和 Claude，或新建会话验证加载结果。
 
+- Codex：让会话执行 `Summarize the current instructions`，确认来源包含 `~/.codex/AGENTS.md` 的 Dev Brain 受管区块。
+- Claude Code：执行 `/memory`，确认已读取 `~/.claude/CLAUDE.md` 的导入入口。
+- Cursor：打开 Rules 面板，确认 `dev-brain.mdc` 为用户级 Always Apply 规则。
+
+安装器会把仓库链接到 `~/.dev-brain/repo`，把 Codex 和 Claude 规则以可回滚的受管区块合并，并为 Cursor 规则和七个 Skill 创建链接。Windows 无法创建符号链接时会退回到复制，并记录 `~/.dev-brain/install-manifest.json`，卸载时只删除仍未被修改的复制项。
+
+卸载：macOS/Linux/WSL 运行 `sh scripts/uninstall.sh`；Windows 运行 `pwsh -NoProfile -File .\scripts\uninstall.ps1`。原有规则会保留，备份位于 `~/.dev-brain/backups/`。
+
 ## 更新
 
 更新脚本只在仓库工作区干净时执行 `git pull --ff-only`。任何推送都必须由用户明确确认。
@@ -46,6 +56,8 @@ sh scripts/update.sh
 ```powershell
 pwsh -NoProfile -File .\scripts\update.ps1
 ```
+
+更新不会自动 stash、reset、迁移项目或推送远程；工作区有未提交修改时会先停止。仓库的 GitHub Actions 在 Linux、macOS 和 Windows 上分别验证脚本；Linux 作业只代表 POSIX/WSL 等价路径，不替代 Windows 权限验证。
 
 ## 知识生命周期
 

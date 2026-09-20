@@ -1,0 +1,34 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tests/test-content.sh
+      - run: sh tests/test-install-macos.sh
+      - run: sh tests/test-validate.sh
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tests/test-content.sh
+      - run: sh tests/test-install-macos.sh
+      - run: sh tests/test-validate.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: ./tests/test-install-windows.ps1
+      - shell: pwsh
+        run: ./scripts/validate.ps1
