@@ -4,6 +4,8 @@ globs:
 alwaysApply: true
 ---
 
+# Legacy 适配器草稿：第一版只支持 Codex，不会安装或维护此文件。
+
 # Dev Brain
 
 - 先读取项目规则和真实配置，再修改代码。

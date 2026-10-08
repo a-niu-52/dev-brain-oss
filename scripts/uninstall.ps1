@@ -97,7 +97,8 @@ function Remove-Exclusive([string]$Source, [string]$Target, $ManifestEntries) {
   }
   $entry = $ManifestEntries | Where-Object { $_.target -and (Resolve-ComparablePath ([string]$_.target)) -eq (Resolve-ComparablePath $Target) -and $_.source -and (Resolve-ComparablePath ([string]$_.source)) -eq (Resolve-ComparablePath $Source) } | Select-Object -First 1
   if ($null -ne $entry) {
-    if ($entry.hash -and (Get-PathHash $Target) -ne ([string]$entry.hash).ToLowerInvariant()) { Fail "复制目标已被修改，未删除: $Target" }
+    $installedHash = if ($entry.installedHash) { [string]$entry.installedHash } else { [string]$entry.hash }
+    if (-not $installedHash -or (Get-PathHash $Target) -ne $installedHash.ToLowerInvariant()) { Fail "复制目标已被修改或哈希缺失，未删除: $Target" }
     Remove-Item -LiteralPath $Target -Recurse -Force
     Write-Output "已移除复制项: $Target"
     return $true

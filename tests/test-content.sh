@@ -13,6 +13,7 @@ core/naming-conventions.md
 core/git-workflow.md
 core/testing-rules.md
 core/security-boundaries.md
+core/task-routing.md
 profiles/vue-typescript.md
 profiles/flutter.md
 profiles/java-spring-maven.md
@@ -35,12 +36,17 @@ references/README.md
 references/project-patterns.md
 references/common-configurations.md
 references/tool-loading.md
+references/skill-index.md
+references/tool-capabilities.md
 archive/README.md
 adapters/codex/AGENTS.md
-adapters/cursor/dev-brain.mdc
-adapters/claude/CLAUDE.md
 inbox/README.md
 templates/project-AGENTS.md
+templates/requirement-card.md
+templates/change-design.md
+templates/task-plan.md
+templates/verification-report.md
+templates/session-handoff.md
 security/secret-scan-allowlist.txt'
 
 printf '%s\n' "$required_files" | while IFS= read -r file; do
@@ -55,6 +61,13 @@ grep -q 'vue-tsc --noEmit' "$ROOT/profiles/vue-typescript.md"
 grep -q 'mvn test -pl' "$ROOT/profiles/java-spring-maven.md"
 grep -q '桥接协议矩阵' "$ROOT/profiles/multi-platform-bridge.md"
 grep -q '默认语言' "$ROOT/context/collaboration-preferences.md"
+grep -q 'skill-index.md' "$ROOT/adapters/codex/AGENTS.md"
+grep -q 'core/task-routing.md' "$ROOT/adapters/codex/AGENTS.md"
+grep -q '第一版只支持 Codex' "$ROOT/README.md"
+test -f "$ROOT/scripts/doctor.sh"
+test -f "$ROOT/scripts/doctor.ps1"
+grep -q 'doctor.sh' "$ROOT/scripts/update.sh"
+grep -q 'doctor.ps1' "$ROOT/scripts/update.ps1"
 for project in mobile-web java-multimodule-backend multiplatform-container warehouse-flutter saas-flutter; do
   grep -q '最后核验日期' "$ROOT/projects/$project.md"
   grep -q '脱敏状态：已脱敏' "$ROOT/projects/$project.md"
@@ -66,9 +79,6 @@ for prompt in project-onboarding feature-development bug-diagnosis code-review k
   grep -q '可复制提示词' "$ROOT/prompts/$prompt.md"
 done
 grep -q '归档原因' "$ROOT/archive/README.md"
-grep -q '^alwaysApply: true$' "$ROOT/adapters/cursor/dev-brain.mdc"
-grep -q '@.*core/development-principles.md' "$ROOT/adapters/claude/CLAUDE.md"
-
 for skill in code-review debugging git-delivery project-onboarding extract-project-knowledge targeted-verification cross-platform-contract; do
   file="$ROOT/skills/$skill/SKILL.md"
   test -f "$file" || { echo "缺少 Skill: $skill" >&2; exit 1; }
@@ -77,11 +87,14 @@ for skill in code-review debugging git-delivery project-onboarding extract-proje
   grep -q '^description: .\+' "$file"
 done
 
-for playbook in start-new-project fix-bug deliver-feature extract-project-knowledge; do
+for playbook in answer-question start-new-project fix-bug deliver-feature review-change extract-project-knowledge full-development-lifecycle; do
   test -f "$ROOT/playbooks/$playbook.md" || { echo "缺少 Playbook: $playbook" >&2; exit 1; }
 done
 
-if grep -R 'archive/' "$ROOT/adapters" "$ROOT/profiles" "$ROOT/skills"; then
+sh "$ROOT/tests/test-routing.sh"
+sh "$ROOT/tests/test-workflow-contract.sh"
+
+if grep -R 'archive/' "$ROOT/adapters/codex" "$ROOT/profiles" "$ROOT/skills"; then
   echo '自动加载入口不得引用 archive/' >&2
   exit 1
 fi

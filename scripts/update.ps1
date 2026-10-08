@@ -26,4 +26,5 @@ if ($LASTEXITCODE -ne 0) {
 
 & (Join-Path $PSScriptRoot 'validate.ps1')
 & (Join-Path $PSScriptRoot 'install.ps1')
+& (Join-Path $PSScriptRoot 'doctor.ps1')
 Write-Output 'Dev Brain 更新完成'

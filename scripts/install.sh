@@ -62,8 +62,6 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -f "$ROOT/adapters/codex/AGENTS.md" ] || fail '缺少 Codex 适配入口'
-[ -f "$ROOT/adapters/claude/CLAUDE.md" ] || fail '缺少 Claude 适配入口'
-[ -f "$ROOT/adapters/cursor/dev-brain.mdc" ] || fail '缺少 Cursor 适配入口'
 
 same_link() {
   [ -L "$2" ] && [ "$(readlink "$2")" = "$1" ]
@@ -133,7 +131,6 @@ ensure_backup_dir() {
 merge_managed_block() {
   source=$1
   target=$2
-  mode=$3
   if [ "$DRY_RUN" -eq 1 ]; then
     echo "将合并受管区块: $target"
     return
@@ -160,11 +157,7 @@ merge_managed_block() {
     printf '\n' >> "$tmp"
   fi
   printf '%s\n' "$START" >> "$tmp"
-  if [ "$mode" = codex ]; then
-    cat "$source" >> "$tmp"
-  else
-    printf '%s\n' '@~/.dev-brain/repo/adapters/claude/CLAUDE.md' >> "$tmp"
-  fi
+  cat "$source" >> "$tmp"
   printf '%s\n' "$END" >> "$tmp"
   mv "$tmp" "$target"
 
@@ -179,19 +172,19 @@ merge_managed_block() {
 # Preflight all exclusive targets before changing any user path.
 check_link_target "$ROOT" "$HOME_DIR/.dev-brain/repo"
 check_merge_target "$HOME_DIR/.codex/AGENTS.md"
-check_link_target "$ROOT/adapters/cursor/dev-brain.mdc" "$HOME_DIR/.cursor/rules/dev-brain.mdc"
-check_merge_target "$HOME_DIR/.claude/CLAUDE.md"
 for skill in code-review debugging git-delivery project-onboarding extract-project-knowledge targeted-verification cross-platform-contract; do
   check_link_target "$ROOT/skills/$skill" "$HOME_DIR/.agents/skills/$skill"
 done
 
 [ "$DRY_RUN" -eq 1 ] && echo 'dry-run：未修改用户目录'
 link_one "$ROOT" "$HOME_DIR/.dev-brain/repo"
-merge_managed_block "$ROOT/adapters/codex/AGENTS.md" "$HOME_DIR/.codex/AGENTS.md" codex
-link_one "$ROOT/adapters/cursor/dev-brain.mdc" "$HOME_DIR/.cursor/rules/dev-brain.mdc"
-merge_managed_block "$ROOT/adapters/claude/CLAUDE.md" "$HOME_DIR/.claude/CLAUDE.md" claude
+merge_managed_block "$ROOT/adapters/codex/AGENTS.md" "$HOME_DIR/.codex/AGENTS.md"
 for skill in code-review debugging git-delivery project-onboarding extract-project-knowledge targeted-verification cross-platform-contract; do
   link_one "$ROOT/skills/$skill" "$HOME_DIR/.agents/skills/$skill"
 done
 
-echo 'Dev Brain 安装完成'
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo 'dry-run 完成：未安装或修改用户目录'
+else
+  echo 'Dev Brain Codex 安装完成'
+fi

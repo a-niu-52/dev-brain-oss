@@ -23,4 +23,5 @@ fi
 
 sh "$ROOT/scripts/validate.sh"
 sh "$ROOT/scripts/install.sh"
+sh "$ROOT/scripts/doctor.sh"
 echo 'Dev Brain 更新完成'

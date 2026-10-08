@@ -93,7 +93,7 @@ if [ "$SCAN_ROOT" = "$ROOT" ]; then
     [ -n "$rel" ] || continue
     scan_file "$ROOT/$rel" || failed=1
   done <<EOF
-$(git -C "$ROOT" ls-files)
+$(git -C "$ROOT" ls-files --cached --others --exclude-standard)
 EOF
 else
   while IFS= read -r file; do

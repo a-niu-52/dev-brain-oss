@@ -18,7 +18,7 @@
 
 ## 真实验证命令
 
-优先运行 `dart format`、`flutter analyze` 和相关 `flutter test`，复杂流程补充设备或集成验证。
+优先运行 `dart format`、`flutter analyze` 和相关 `flutter test`，复杂流程补充不启动 App/设备的自动化或契约测试及构建检查。移动端不使用真机、模拟器、仿真器或设备形态模拟；依赖设备运行时的行为标为未验证。
 
 ## 高风险区域
 

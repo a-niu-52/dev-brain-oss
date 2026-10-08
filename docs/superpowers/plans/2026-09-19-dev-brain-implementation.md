@@ -1,4 +1,6 @@
-# Dev Brain 第一版实施计划
+# Dev Brain 初始版本实施计划（历史）
+
+> 此计划记录 2026-09-20 的初始版本实现。2026-09-25 起，当前迭代以 Codex-only、macOS+Windows 和自包含任务路由为准；不要按本文旧的 Cursor/Claude 支持范围扩展安装器。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

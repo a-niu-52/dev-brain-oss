@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $FakeHome = Join-Path ([IO.Path]::GetTempPath()) ('dev-brain-' + [guid]::NewGuid())
 $RollbackHome = Join-Path ([IO.Path]::GetTempPath()) ('dev-brain-rollback-' + [guid]::NewGuid())
+$ConflictHome = Join-Path ([IO.Path]::GetTempPath()) ('dev-brain-conflict-' + [guid]::NewGuid())
+$SourceCopy = Join-Path ([IO.Path]::GetTempPath()) ('dev-brain-source-' + [guid]::NewGuid())
 
 function Assert-Fails([scriptblock]$Action, [string]$Message) {
   $failed = $false
@@ -9,54 +11,76 @@ function Assert-Fails([scriptblock]$Action, [string]$Message) {
   if (-not $failed) { throw $Message }
 }
 
-New-Item -ItemType Directory -Path $FakeHome, $RollbackHome | Out-Null
+New-Item -ItemType Directory -Path $FakeHome, $RollbackHome, $ConflictHome, $SourceCopy | Out-Null
 try {
+  New-Item -ItemType Directory -Path "$SourceCopy/scripts", "$SourceCopy/adapters/codex", "$SourceCopy/skills" -Force | Out-Null
+  Copy-Item -LiteralPath "$Root/scripts/install.ps1" -Destination "$SourceCopy/scripts/install.ps1"
+  Copy-Item -LiteralPath "$Root/scripts/uninstall.ps1" -Destination "$SourceCopy/scripts/uninstall.ps1"
+  Copy-Item -LiteralPath "$Root/scripts/doctor.ps1" -Destination "$SourceCopy/scripts/doctor.ps1"
+  Copy-Item -LiteralPath "$Root/adapters/codex/AGENTS.md" -Destination "$SourceCopy/adapters/codex/AGENTS.md"
+  foreach ($skillDir in (Get-ChildItem -LiteralPath "$Root/skills" -Directory)) {
+    Copy-Item -LiteralPath $skillDir.FullName -Destination "$SourceCopy/skills" -Recurse
+  }
   $env:DEV_BRAIN_HOME_DIR = $FakeHome
-  New-Item -ItemType Directory -Path "$FakeHome/.codex", "$FakeHome/.claude", "$FakeHome/.cursor/rules" -Force | Out-Null
+  $env:DEV_BRAIN_FORCE_COPY = '1'
+  New-Item -ItemType Directory -Path "$FakeHome/.codex" -Force | Out-Null
   Set-Content -LiteralPath "$FakeHome/.codex/AGENTS.md" -Value '用户原有 Codex 规则'
-  Set-Content -LiteralPath "$FakeHome/.claude/CLAUDE.md" -Value '用户原有 Claude 规则'
-  & "$Root/scripts/install.ps1" -DryRun
+  & "$SourceCopy/scripts/install.ps1" -DryRun
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -match 'DEV-BRAIN:START') { throw 'DryRun 修改了文件' }
-  & "$Root/scripts/install.ps1"
+  & "$SourceCopy/scripts/install.ps1"
   @(
     "$FakeHome/.dev-brain/repo",
-    "$FakeHome/.codex/AGENTS.md",
-    "$FakeHome/.cursor/rules/dev-brain.mdc",
-    "$FakeHome/.claude/CLAUDE.md"
+    "$FakeHome/.codex/AGENTS.md"
   ) | ForEach-Object { if (-not (Test-Path -LiteralPath $_)) { throw "缺少安装目标: $_" } }
   @('code-review', 'debugging', 'git-delivery', 'project-onboarding', 'extract-project-knowledge', 'targeted-verification', 'cross-platform-contract') |
     ForEach-Object { if (-not (Test-Path -LiteralPath "$FakeHome/.agents/skills/$_")) { throw "缺少 Skill: $_" } }
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -notmatch '用户原有 Codex 规则') { throw '覆盖了 Codex 原有规则' }
-  if ((Get-Content "$FakeHome/.claude/CLAUDE.md" -Raw) -notmatch '用户原有 Claude 规则') { throw '覆盖了 Claude 原有规则' }
+  if ((Test-Path "$FakeHome/.cursor") -or (Test-Path "$FakeHome/.claude")) { throw '仅 Codex 版本不应修改其他客户端' }
   if (-not (Get-ChildItem "$FakeHome/.dev-brain/backups" -File -Recurse)) { throw '未生成规则备份' }
-  & "$Root/scripts/install.ps1"
+  & "$SourceCopy/scripts/doctor.ps1"
+  Remove-Item -LiteralPath "$FakeHome/.agents/skills/debugging" -Recurse -Force
+  Assert-Fails { & "$SourceCopy/scripts/doctor.ps1" } 'doctor 未发现缺失的 Skill'
+  & "$SourceCopy/scripts/install.ps1"
+  & "$SourceCopy/scripts/doctor.ps1"
+  & "$SourceCopy/scripts/install.ps1"
   $CodexMarkers = @((Select-String -Path "$FakeHome/.codex/AGENTS.md" -Pattern '<!-- DEV-BRAIN:START -->')).Count
-  $ClaudeMarkers = @((Select-String -Path "$FakeHome/.claude/CLAUDE.md" -Pattern '<!-- DEV-BRAIN:START -->')).Count
   if ($CodexMarkers -ne 1) { throw '重复写入 Codex 受管区块' }
-  if ($ClaudeMarkers -ne 1) { throw '重复写入 Claude 受管区块' }
-  & "$Root/scripts/uninstall.ps1"
+  $manifest = @(Get-Content -LiteralPath "$FakeHome/.dev-brain/install-manifest.json" -Raw | ConvertFrom-Json)
+  if (-not $manifest[0].sourceHash -or -not $manifest[0].installedHash) { throw '复制清单缺少来源和安装哈希' }
+  $installedSkill = "$FakeHome/.agents/skills/debugging/SKILL.md"
+  $sourceSkill = "$SourceCopy/skills/debugging/SKILL.md"
+  Add-Content -LiteralPath $sourceSkill -Value "`n<!-- source refresh test -->"
+  & "$SourceCopy/scripts/install.ps1"
+  if ((Get-Content -LiteralPath $installedSkill -Raw) -notmatch 'source refresh test') { throw '未刷新未被用户修改的旧副本' }
+  $manifest = @(Get-Content -LiteralPath "$FakeHome/.dev-brain/install-manifest.json" -Raw | ConvertFrom-Json)
+  $debugTarget = "$FakeHome/.agents/skills/debugging"
+  $debugEntry = $manifest | Where-Object { ([string]$_.target).Replace('\','/') -eq $debugTarget.Replace('\','/') } | Select-Object -First 1
+  if (-not $debugEntry.sourceHash -or -not $debugEntry.installedHash) { throw '更新后的清单缺少哈希' }
+  & "$SourceCopy/scripts/uninstall.ps1"
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -notmatch '用户原有 Codex 规则') { throw '卸载删除了 Codex 原有规则' }
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -match 'DEV-BRAIN:START') { throw '卸载未清理 Codex 受管区块' }
-  if ((Get-Content "$FakeHome/.claude/CLAUDE.md" -Raw) -notmatch '用户原有 Claude 规则') { throw '卸载删除了 Claude 原有规则' }
-  if ((Get-Content "$FakeHome/.claude/CLAUDE.md" -Raw) -match 'DEV-BRAIN:START') { throw '卸载未清理 Claude 受管区块' }
 
-  Set-Content -LiteralPath "$FakeHome/.cursor/rules/dev-brain.mdc" -Value '用户原有 Cursor 规则'
-  Assert-Fails { & "$Root/scripts/install.ps1" } '未知 Cursor 冲突未阻止安装'
-  if ((Get-Content "$FakeHome/.cursor/rules/dev-brain.mdc" -Raw) -notmatch '用户原有 Cursor 规则') { throw '冲突文件被覆盖' }
+  $env:DEV_BRAIN_HOME_DIR = $ConflictHome
+  & "$SourceCopy/scripts/install.ps1"
+  $conflictSkill = "$ConflictHome/.agents/skills/debugging/SKILL.md"
+  Add-Content -LiteralPath $conflictSkill -Value "`n<!-- user's local edit -->"
+  Add-Content -LiteralPath $sourceSkill -Value "`n<!-- second source refresh test -->"
+  Assert-Fails { & "$SourceCopy/scripts/install.ps1" } '用户修改过的副本没有阻止覆盖'
+  if ((Get-Content -LiteralPath $conflictSkill -Raw) -notmatch "user's local edit") { throw '冲突检测覆盖了用户修改' }
+  Assert-Fails { & "$SourceCopy/scripts/uninstall.ps1" } '卸载删除了用户修改过的副本'
+  if ((Get-Content -LiteralPath $conflictSkill -Raw) -notmatch "user's local edit") { throw '卸载覆盖了用户修改' }
 
-  New-Item -ItemType Directory -Path "$RollbackHome/.codex", "$RollbackHome/.claude" -Force | Out-Null
+  New-Item -ItemType Directory -Path "$RollbackHome/.codex" -Force | Out-Null
   Set-Content -LiteralPath "$RollbackHome/.codex/AGENTS.md" -Value '回滚前 Codex 规则'
-  Set-Content -LiteralPath "$RollbackHome/.claude/CLAUDE.md" -Value '回滚前 Claude 规则'
   $env:DEV_BRAIN_HOME_DIR = $RollbackHome
   $env:DEV_BRAIN_TEST_FAIL_AFTER = '3'
-  Assert-Fails { & "$Root/scripts/install.ps1" } '模拟失败未返回非零'
+  Assert-Fails { & "$SourceCopy/scripts/install.ps1" } '模拟失败未返回非零'
   if ((Get-Content "$RollbackHome/.codex/AGENTS.md" -Raw) -notmatch '回滚前 Codex 规则') { throw 'Codex 回滚失败' }
-  if ((Get-Content "$RollbackHome/.claude/CLAUDE.md" -Raw) -notmatch '回滚前 Claude 规则') { throw 'Claude 回滚失败' }
   if (Test-Path -LiteralPath "$RollbackHome/.dev-brain/repo") { throw '回滚后仍残留仓库链接' }
   Write-Output 'Windows 安装测试通过'
 } finally {
-  Remove-Item -LiteralPath $FakeHome -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $RollbackHome -Recurse -Force -ErrorAction SilentlyContinue
+  foreach ($path in @($FakeHome, $RollbackHome, $ConflictHome, $SourceCopy)) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
   Remove-Item Env:DEV_BRAIN_HOME_DIR -ErrorAction SilentlyContinue
   Remove-Item Env:DEV_BRAIN_TEST_FAIL_AFTER -ErrorAction SilentlyContinue
+  Remove-Item Env:DEV_BRAIN_FORCE_COPY -ErrorAction SilentlyContinue
 }

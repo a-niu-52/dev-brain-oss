@@ -86,10 +86,11 @@ function Get-PathHash([string]$Path) {
 function Test-ManagedCopy([string]$Source, [string]$Target) {
   $entry = Find-ManifestEntry $Target $Source
   if ($null -eq $entry -or -not (Test-AnyPath $Target)) { return $false }
-  if ($entry.hash -and (Get-PathHash $Target) -ne ([string]$entry.hash).ToLowerInvariant()) {
+  $installedHash = if ($entry.installedHash) { [string]$entry.installedHash } else { [string]$entry.hash }
+  if ($installedHash -and (Get-PathHash $Target) -ne $installedHash.ToLowerInvariant()) {
     return $false
   }
-  return $true
+  return [bool]$installedHash
 }
 
 function Check-ExclusiveTarget([string]$Source, [string]$Target) {
@@ -165,7 +166,7 @@ function Remove-ManagedBlockText([string]$Text, [string]$Target) {
   return [pscustomobject]@{ Text = [string]::Join("`n", $output); Count = $starts }
 }
 
-function Merge-ManagedBlock([string]$Source, [string]$Target, [ValidateSet('codex','claude')][string]$Mode) {
+function Merge-ManagedBlock([string]$Source, [string]$Target) {
   if ($DryRun) { Write-Output "将合并受管区块: $Target"; return }
   $existing = if (Test-Path -LiteralPath $Target -PathType Leaf) { Get-Content -LiteralPath $Target -Raw } else { '' }
   $backup = $null
@@ -176,7 +177,7 @@ function Merge-ManagedBlock([string]$Source, [string]$Target, [ValidateSet('code
   }
   $clean = Remove-ManagedBlockText $existing $Target
   $base = $clean.Text.TrimEnd("`r", "`n")
-  $content = if ($Mode -eq 'codex') { Get-Content -LiteralPath $Source -Raw } else { '@~/.dev-brain/repo/adapters/claude/CLAUDE.md' + "`n" }
+  $content = Get-Content -LiteralPath $Source -Raw
   $newText = if ($base.Length -gt 0) { $base + "`n`n" + $Start + "`n" + $content.TrimEnd("`r", "`n") + "`n" + $End + "`n" } else { $Start + "`n" + $content.TrimEnd("`r", "`n") + "`n" + $End + "`n" }
   Write-AtomicText $Target $newText
   Add-Journal $(if ($null -eq $backup) { 'CREATE' } else { 'MERGE' }) $Target $backup
@@ -184,30 +185,75 @@ function Merge-ManagedBlock([string]$Source, [string]$Target, [ValidateSet('code
 }
 
 function Install-Exclusive([string]$Source, [string]$Target, [ValidateSet('junction','symlink','copy')][string]$Mode) {
-  if (Test-SameLink $Source $Target -or (Test-ManagedCopy $Source $Target)) { Write-Output "已存在: $Target"; return }
-  if (Test-AnyPath $Target) { Fail "目标存在且来源不一致: $Target" }
-  if ($DryRun) { Write-Output "将创建链接: $Target -> $Source"; return }
-  New-Item -ItemType Directory -Path (Split-Path -Parent $Target) -Force | Out-Null
-  $actualMode = $Mode
-  try {
-    if ($Mode -eq 'junction') { New-Item -ItemType Junction -Path $Target -Target $Source | Out-Null }
-    else { New-Item -ItemType SymbolicLink -Path $Target -Target $Source | Out-Null }
-  } catch {
-    if ($Mode -eq 'junction') { throw }
-    $actualMode = 'copy'
-    if ((Get-ItemSafe $Target)) { Remove-Item -LiteralPath $Target -Recurse -Force }
-    if ((Get-Item -LiteralPath $Source).PSIsContainer) { Copy-Item -LiteralPath $Source -Destination $Target -Recurse -Force } else { Copy-Item -LiteralPath $Source -Destination $Target -Force }
+  if (Test-SameLink $Source $Target) { Write-Output "已存在: $Target"; return }
+  $isManagedCopy = Test-ManagedCopy $Source $Target
+  if ((Test-AnyPath $Target) -and -not $isManagedCopy) { Fail "目标存在且来源不一致或本机副本已修改: $Target" }
+  if ($DryRun) {
+    if ($isManagedCopy) { Write-Output "将检查并按需刷新副本: $Target" }
+    else { Write-Output "将创建链接: $Target -> $Source" }
+    return
   }
-  Add-Journal $(if ($actualMode -eq 'copy') { 'COPY' } else { 'LINK' }) $Target $null
-  if ($actualMode -eq 'copy') {
-    $script:PendingManifest.Add([pscustomobject]@{ target = $Target; source = $Source; mode = 'copy'; hash = Get-PathHash $Target })
+
+  New-Item -ItemType Directory -Path (Split-Path -Parent $Target) -Force | Out-Null
+  $forceCopy = ($env:DEV_BRAIN_FORCE_COPY -eq '1') -and ($Mode -ne 'junction')
+  $sourceHash = Get-PathHash $Source
+
+  if ($isManagedCopy) {
+    $entry = Find-ManifestEntry $Target $Source
+    $installedHash = if ($entry.installedHash) { [string]$entry.installedHash } else { [string]$entry.hash }
+    if ($installedHash -and (Get-PathHash $Target) -ne $installedHash.ToLowerInvariant()) { Fail "复制目标已被本机修改，未覆盖: $Target" }
+    if ($entry.sourceHash -and ([string]$entry.sourceHash).ToLowerInvariant() -eq $sourceHash) {
+      $script:PendingManifest.Add([pscustomobject]@{ target = $Target; source = $Source; mode = 'copy'; sourceHash = $sourceHash; installedHash = $installedHash.ToLowerInvariant() })
+      Write-Output "已是最新: $Target"
+      return
+    }
+
+    $staged = $Target + '.dev-brain-stage-' + [guid]::NewGuid().ToString('N')
+    $backup = $Target + '.dev-brain-backup-' + [guid]::NewGuid().ToString('N')
+    try {
+      if ((Get-Item -LiteralPath $Source).PSIsContainer) { Copy-Item -LiteralPath $Source -Destination $staged -Recurse -Force } else { Copy-Item -LiteralPath $Source -Destination $staged -Force }
+      $stagedHash = Get-PathHash $staged
+      if ($stagedHash -ne $sourceHash) { Fail "复制后哈希不一致: $Target" }
+      Move-Item -LiteralPath $Target -Destination $backup
+      try { Move-Item -LiteralPath $staged -Destination $Target }
+      catch { Move-Item -LiteralPath $backup -Destination $Target; throw }
+      Add-Journal 'REFRESH' $Target $backup
+      Register-Action
+      $script:PendingManifest.Add([pscustomobject]@{ target = $Target; source = $Source; mode = 'copy'; sourceHash = $sourceHash; installedHash = $stagedHash })
+      Write-Output "已刷新副本: $Target"
+    } finally {
+      if (Test-AnyPath $staged) { Remove-Item -LiteralPath $staged -Recurse -Force }
+    }
+    return
+  }
+
+  $copyFallback = $false
+  if ($Mode -eq 'junction') {
+    New-Item -ItemType Junction -Path $Target -Target $Source | Out-Null
+  } elseif (-not $forceCopy) {
+    try { New-Item -ItemType SymbolicLink -Path $Target -Target $Source | Out-Null }
+    catch {
+      if (Test-AnyPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force }
+      $copyFallback = $true
+    }
+  } else { $copyFallback = $true }
+
+  if ($copyFallback) {
+    if ((Get-Item -LiteralPath $Source).PSIsContainer) { Copy-Item -LiteralPath $Source -Destination $Target -Recurse -Force } else { Copy-Item -LiteralPath $Source -Destination $Target -Force }
+    $installedHash = Get-PathHash $Target
+    if ($installedHash -ne $sourceHash) { Fail "复制后哈希不一致: $Target" }
+    Add-Journal 'COPY' $Target $null
+    $script:PendingManifest.Add([pscustomobject]@{ target = $Target; source = $Source; mode = 'copy'; sourceHash = $sourceHash; installedHash = $installedHash })
+  } else {
+    Add-Journal 'LINK' $Target $null
   }
   Register-Action
 }
 
 function Save-Manifest {
   if ($PendingManifest.Count -eq 0) { return }
-  $all = @($ManifestEntries | Where-Object { $PendingManifest.target -notcontains $_.target }) + @($PendingManifest)
+  $pendingTargets = @($PendingManifest | ForEach-Object { Resolve-ComparablePath ([string]$_.target) })
+  $all = @($ManifestEntries | Where-Object { $pendingTargets -notcontains (Resolve-ComparablePath ([string]$_.target)) }) + @($PendingManifest)
   Write-AtomicText $ManifestPath (($all | ConvertTo-Json -Depth 5) + "`n")
 }
 
@@ -217,6 +263,9 @@ function Rollback {
     try {
       if ($entry.Kind -eq 'LINK' -or $entry.Kind -eq 'COPY') {
         if (Test-AnyPath $entry.Target) { Remove-Item -LiteralPath $entry.Target -Recurse -Force }
+      } elseif ($entry.Kind -eq 'REFRESH' -and $entry.Backup) {
+        if (Test-AnyPath $entry.Target) { Remove-Item -LiteralPath $entry.Target -Recurse -Force }
+        if (Test-AnyPath $entry.Backup) { Move-Item -LiteralPath $entry.Backup -Destination $entry.Target }
       } elseif ($entry.Kind -eq 'MERGE' -and $entry.Backup) {
         Copy-Item -LiteralPath $entry.Backup -Destination $entry.Target -Force
       } elseif ($entry.Kind -eq 'CREATE') {
@@ -227,25 +276,24 @@ function Rollback {
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $Root 'adapters/codex/AGENTS.md') -PathType Leaf)) { Fail '缺少 Codex 适配入口' }
-if (-not (Test-Path -LiteralPath (Join-Path $Root 'adapters/claude/CLAUDE.md') -PathType Leaf)) { Fail '缺少 Claude 适配入口' }
-if (-not (Test-Path -LiteralPath (Join-Path $Root 'adapters/cursor/dev-brain.mdc') -PathType Leaf)) { Fail '缺少 Cursor 适配入口' }
 
 $skills = @('code-review','debugging','git-delivery','project-onboarding','extract-project-knowledge','targeted-verification','cross-platform-contract')
 Check-ExclusiveTarget $Root (Join-Path $HomeDir '.dev-brain/repo')
 Check-MergeTarget (Join-Path $HomeDir '.codex/AGENTS.md')
-Check-ExclusiveTarget (Join-Path $Root 'adapters/cursor/dev-brain.mdc') (Join-Path $HomeDir '.cursor/rules/dev-brain.mdc')
-Check-MergeTarget (Join-Path $HomeDir '.claude/CLAUDE.md')
 foreach ($skill in $skills) { Check-ExclusiveTarget (Join-Path $Root "skills/$skill") (Join-Path $HomeDir ".agents/skills/$skill") }
 
 try {
   if ($DryRun) { Write-Output 'dry-run：未修改用户目录' }
   Install-Exclusive $Root (Join-Path $HomeDir '.dev-brain/repo') junction
-  Merge-ManagedBlock (Join-Path $Root 'adapters/codex/AGENTS.md') (Join-Path $HomeDir '.codex/AGENTS.md') codex
-  Install-Exclusive (Join-Path $Root 'adapters/cursor/dev-brain.mdc') (Join-Path $HomeDir '.cursor/rules/dev-brain.mdc') symlink
-  Merge-ManagedBlock (Join-Path $Root 'adapters/claude/CLAUDE.md') (Join-Path $HomeDir '.claude/CLAUDE.md') claude
+  Merge-ManagedBlock (Join-Path $Root 'adapters/codex/AGENTS.md') (Join-Path $HomeDir '.codex/AGENTS.md')
   foreach ($skill in $skills) { Install-Exclusive (Join-Path $Root "skills/$skill") (Join-Path $HomeDir ".agents/skills/$skill") symlink }
   Save-Manifest
-  Write-Output 'Dev Brain 安装完成'
+  foreach ($entry in $Journal | Where-Object { $_.Kind -eq 'REFRESH' -and $_.Backup }) {
+    try { if (Test-AnyPath $entry.Backup) { Remove-Item -LiteralPath $entry.Backup -Recurse -Force } }
+    catch { Write-Warning "已完成副本更新，但临时备份仍保留: $($entry.Backup)" }
+  }
+  if ($DryRun) { Write-Output 'dry-run 完成：未安装或修改用户目录' }
+  else { Write-Output 'Dev Brain Codex 安装完成' }
 } catch {
   Rollback
   throw

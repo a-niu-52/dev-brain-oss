@@ -1,3 +1,5 @@
+# Legacy 适配器草稿：第一版只支持 Codex，不会安装或维护此文件。
+
 # Personal development instructions
 
 @~/.dev-brain/repo/context/collaboration-preferences.md

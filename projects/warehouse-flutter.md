@@ -18,7 +18,7 @@
 
 ## 真实验证命令
 
-优先运行 `dart format`、`flutter analyze` 和相关 `flutter test`，再按设备能力补充真机验证。
+优先运行 `dart format`、`flutter analyze` 和相关 `flutter test`，并检查平台构建。移动端不使用真机、模拟器、仿真器或设备形态模拟；依赖扫码硬件、设备识别或权限运行时的行为标为未验证。
 
 ## 高风险区域
 

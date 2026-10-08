@@ -37,12 +37,14 @@ remove_link() {
     fi
   elif [ -e "$target" ]; then
     fail "目标不是 Dev Brain 创建的链接: $target"
+  else
+    return 0
   fi
 }
 
 remove_managed_block() {
   target=$1
-  [ -e "$target" ] || return
+  [ -e "$target" ] || return 0
   [ -L "$target" ] && fail "规则文件不能是符号链接: $target"
   [ -f "$target" ] || fail "规则目标不是普通文件: $target"
 

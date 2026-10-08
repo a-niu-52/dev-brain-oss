@@ -6,6 +6,15 @@ sh "$ROOT/scripts/validate.sh"
 
 FIXTURE=$(mktemp -d)
 trap 'rm -rf "$FIXTURE"' EXIT
+grep -q 'ls-files --cached --others --exclude-standard' "$ROOT/scripts/validate.sh" || {
+  echo '敏感信息扫描必须覆盖已跟踪和未跟踪文件' >&2
+  exit 1
+}
+grep -q 'ls-files --cached --others --exclude-standard' "$ROOT/scripts/validate.ps1" || {
+  echo 'Windows 敏感信息扫描必须覆盖已跟踪和未跟踪文件' >&2
+  exit 1
+}
+
 printf '%s\n' '-----BEGIN PRIVATE'' KEY-----' > "$FIXTURE/leak.txt"
 if DEV_BRAIN_SCAN_ROOT="$FIXTURE" sh "$ROOT/scripts/validate.sh"; then
   echo '敏感信息未被阻止' >&2
