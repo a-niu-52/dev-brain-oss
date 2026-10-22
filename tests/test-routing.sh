@@ -8,6 +8,7 @@ references/skill-index.md
 references/tool-capabilities.md
 tests/fixtures/routing-cases.md
 templates/requirement-card.md
+templates/large-task-record.md
 templates/change-design.md
 templates/task-plan.md
 templates/verification-report.md
@@ -41,8 +42,12 @@ for sample in R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11; do
 done
 grep -q '自动测试不能替代' "$ROOT/tests/fixtures/routing-cases.md"
 
-for template in requirement-card change-design task-plan verification-report session-handoff; do
+for template in requirement-card large-task-record session-handoff; do
   grep -q "templates/$template.md" "$ROOT/core/task-routing.md" "$ROOT/references/skill-index.md"
+done
+
+for template in change-design task-plan verification-report; do
+  grep -q "templates/$template.md" "$ROOT/playbooks/full-development-lifecycle.md" "$ROOT/references/skill-index.md"
 done
 
 grep -q '^## 按需需求压力测试$' "$ROOT/core/task-routing.md"
@@ -61,7 +66,7 @@ grep -q '不依赖外部 `grill-me` 或 `grilling`' "$ROOT/core/task-routing.md"
 grep -q '需求压力测试' "$ROOT/references/skill-index.md"
 grep -q '需求压力测试' "$ROOT/playbooks/full-development-lifecycle.md"
 grep -q '用户明确要求深入把关时，小而明确的任务也进入压力测试' "$ROOT/playbooks/full-development-lifecycle.md"
-grep -q '只在关键设计或高影响未知项需要用户决定时暂停' "$ROOT/prompts/feature-development.md"
+grep -q '分析未获确认前暂停实施' "$ROOT/prompts/feature-development.md"
 grep -Fq '对应 Playbook：`full-development-lifecycle.md`' "$ROOT/prompts/feature-development.md"
 grep -q '需求、方案、设计或技术选型' "$ROOT/core/task-routing.md"
 grep -q '保留原任务意图和授权边界' "$ROOT/core/task-routing.md"

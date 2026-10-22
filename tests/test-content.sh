@@ -43,6 +43,7 @@ adapters/codex/AGENTS.md
 inbox/README.md
 templates/project-AGENTS.md
 templates/requirement-card.md
+templates/large-task-record.md
 templates/change-design.md
 templates/task-plan.md
 templates/verification-report.md

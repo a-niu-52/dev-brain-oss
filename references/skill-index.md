@@ -7,7 +7,7 @@
 | consult | 解释、比较、怎么做 | `playbooks/answer-question.md` | 相关 Reference/Profile；明确要求对需求/方案/设计进行压力测试时使用内置澄清方法 | 直接答复；显式压力测试仍保持只读 |
 | onboarding | 接手、熟悉、分析项目 | `playbooks/start-new-project.md` | `project-onboarding`；匹配的项目卡和 Profile | 规则入口、Git 现场、技术栈、验证命令；只读 |
 | bug | 报错、回归、异常行为 | `playbooks/fix-bug.md` | `project-onboarding`、`debugging`、`targeted-verification`；匹配 Profile | 复现/根因证据、最小修复、回归验证 |
-| feature | 新增、支持、调整行为 | `playbooks/full-development-lifecycle.md` | `project-onboarding`、`targeted-verification`、`code-review`；匹配 Profile；按需使用内置需求压力测试 | 需求/验收；Medium/Large 再加方案、任务清单 |
+| feature | 新增、支持、调整行为 | `playbooks/full-development-lifecycle.md` | `project-onboarding`、`targeted-verification`、`code-review`；匹配 Profile；按需使用内置需求压力测试 | 先分析并等待用户确认；确认后才实施 |
 | review | 审核、Review、检查差异 | `playbooks/review-change.md` | `code-review`；必要时 `targeted-verification` | 只读，按严重程度列问题与证据 |
 | delivery | 提交、推送、合并、发布 | `playbooks/git-delivery.md` | `git-delivery`、必要时 `targeted-verification` | 分支、工作区、提交与远程摘要；推送必须有当前任务授权 |
 | knowledge | 总结经验、沉淀规则 | `playbooks/extract-project-knowledge.md` | `extract-project-knowledge` | 脱敏候选，说明适用范围和证据 |
@@ -27,10 +27,11 @@
 ## 辅助资料
 
 - 新建需求记录：`templates/requirement-card.md`
-- 中大型改动设计：`templates/change-design.md`
-- 可执行任务清单：`templates/task-plan.md`
-- 真实验证结果：`templates/verification-report.md`
-- 跨会话暂停与恢复：`templates/session-handoff.md`
+- 大需求单文件记录：`templates/large-task-record.md`（需求、深入分析、方案、任务、验证和审查写在同一份 Markdown 文件中）
+- 改动设计章节参考：`templates/change-design.md`（Large 放入单文件记录）
+- 可执行任务章节参考：`templates/task-plan.md`（Large 放入单文件记录）
+- 真实验证结果章节参考：`templates/verification-report.md`（Large 默认写入单文件记录，不另生成验证文件）
+- 跨会话暂停与恢复：`templates/session-handoff.md`（Large 追加到单文件记录，不另生成交接文件）
 - 开发闭环：`playbooks/full-development-lifecycle.md`
 
 ## 内置需求压力测试
