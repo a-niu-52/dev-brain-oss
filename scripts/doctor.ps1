@@ -64,8 +64,8 @@ if (-not (Test-SameLink $Root $repoLink)) { Fail "Dev Brain 仓库链接缺失�
 $agents = Join-Path $HomeDir '.codex/AGENTS.md'
 if (-not (Test-Path -LiteralPath $agents -PathType Leaf)) { Fail "缺少 Codex 全局规则: $agents" }
 $text = Get-Content -LiteralPath $agents -Raw
-$starts = [regex]::Matches($text, '(?m)^<!-- DEV-BRAIN:START -->$').Count
-$ends = [regex]::Matches($text, '(?m)^<!-- DEV-BRAIN:END -->$').Count
+$starts = [regex]::Matches($text, '(?m)^<!-- DEV-BRAIN:START -->\r?$').Count
+$ends = [regex]::Matches($text, '(?m)^<!-- DEV-BRAIN:END -->\r?$').Count
 if ($starts -ne 1 -or $ends -ne 1) { Fail 'Codex 全局规则中的 Dev Brain 受管标记缺失或重复' }
 if ($text -notmatch 'task-routing\.md') { Fail 'Codex 入口未指向任务路由' }
 $manifest = Get-ManifestEntries

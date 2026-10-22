@@ -37,6 +37,9 @@ try {
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -notmatch '用户原有 Codex 规则') { throw '覆盖了 Codex 原有规则' }
   if ((Test-Path "$FakeHome/.cursor") -or (Test-Path "$FakeHome/.claude")) { throw '仅 Codex 版本不应修改其他客户端' }
   if (-not (Get-ChildItem "$FakeHome/.dev-brain/backups" -File -Recurse)) { throw '未生成规则备份' }
+  $agentsPath = "$FakeHome/.codex/AGENTS.md"
+  $agentsText = [IO.File]::ReadAllText($agentsPath).Replace("`r`n", "`n").Replace("`n", "`r`n")
+  [IO.File]::WriteAllText($agentsPath, $agentsText, (New-Object Text.UTF8Encoding($false)))
   & "$SourceCopy/scripts/doctor.ps1"
   Remove-Item -LiteralPath "$FakeHome/.agents/skills/debugging" -Recurse -Force
   Assert-Fails { & "$SourceCopy/scripts/doctor.ps1" } 'doctor 未发现缺失的 Skill'
@@ -45,6 +48,7 @@ try {
   & "$SourceCopy/scripts/install.ps1"
   $CodexMarkers = @((Select-String -Path "$FakeHome/.codex/AGENTS.md" -Pattern '<!-- DEV-BRAIN:START -->')).Count
   if ($CodexMarkers -ne 1) { throw '重复写入 Codex 受管区块' }
+  & "$SourceCopy/scripts/doctor.ps1"
   $manifest = @(Get-Content -LiteralPath "$FakeHome/.dev-brain/install-manifest.json" -Raw | ConvertFrom-Json)
   if (-not $manifest[0].sourceHash -or -not $manifest[0].installedHash) { throw '复制清单缺少来源和安装哈希' }
   $installedSkill = "$FakeHome/.agents/skills/debugging/SKILL.md"
