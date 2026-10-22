@@ -142,7 +142,7 @@ function Write-AtomicText([string]$Target, [string]$Text) {
 }
 
 function Remove-ManagedBlockText([string]$Text, [string]$Target) {
-  $lines = $Text -split "`r?`n", -1
+  $lines = $Text -split "`r?`n"
   $output = New-Object 'System.Collections.Generic.List[string]'
   $inside = $false
   $starts = 0

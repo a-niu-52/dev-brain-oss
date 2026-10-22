@@ -46,8 +46,10 @@ try {
   & "$SourceCopy/scripts/install.ps1"
   & "$SourceCopy/scripts/doctor.ps1"
   & "$SourceCopy/scripts/install.ps1"
-  $CodexMarkers = @((Select-String -Path "$FakeHome/.codex/AGENTS.md" -Pattern '<!-- DEV-BRAIN:START -->')).Count
-  if ($CodexMarkers -ne 1) { throw '重复写入 Codex 受管区块' }
+  $agentsText = [IO.File]::ReadAllText($agentsPath)
+  $startMarkers = [regex]::Matches($agentsText, '(?m)^<!-- DEV-BRAIN:START -->\r?$').Count
+  $endMarkers = [regex]::Matches($agentsText, '(?m)^<!-- DEV-BRAIN:END -->\r?$').Count
+  if ($startMarkers -ne 1 -or $endMarkers -ne 1) { throw "受管区块标记数量错误: START=$startMarkers END=$endMarkers" }
   & "$SourceCopy/scripts/doctor.ps1"
   $manifest = @(Get-Content -LiteralPath "$FakeHome/.dev-brain/install-manifest.json" -Raw | ConvertFrom-Json)
   if (-not $manifest[0].sourceHash -or -not $manifest[0].installedHash) { throw '复制清单缺少来源和安装哈希' }
