@@ -1,6 +1,6 @@
 # Dev Brain
 
-个人长期上下文、跨项目工程约定、项目知识和可复用开发工作流的私有知识库，目标是成为可随本人跨设备使用的“外置大脑”。第一版只支持 Codex；提供 macOS 安装方案，Windows 安装脚本已纳入但仍待 Windows 环境修复和验证后正式使用。
+个人长期上下文、跨项目工程约定、项目知识和可复用开发工作流的开源知识库，目标是成为可跨设备使用的“外置大脑”。第一版只支持 Codex；提供 macOS 安装方案，Windows 安装脚本已纳入但仍待 Windows 环境修复和验证后正式使用。
 
 > 本仓库本身是知识与工作流集合，不包含大语言模型。它通过 Codex 的用户级规则入口，让 Codex 在不同项目中按任务读取合适的规则、项目卡片、Skill、Playbook 和模板。
 
@@ -103,13 +103,13 @@ Skills 是按需执行方法；Playbooks 把多个方法组织成任务流程；
 
 ## 安装
 
-先确认 GitHub 账号有权访问这个私有仓库，并在本机配置好 SSH Key。仓库是唯一知识来源；Codex 用户目录中的入口和链接只是接入层，不应另行维护一份知识副本。
+安装前准备好 Git。仓库是唯一知识来源；Codex 用户目录中的入口和链接只是接入层，不应另行维护一份知识副本。
 
 ```bash
 mkdir -p ~/Developer
 cd ~/Developer
-git clone git@github.com:a-niu-52/dev-brain.git
-cd dev-brain
+git clone https://github.com/a-niu-52/dev-brain-oss.git
+cd dev-brain-oss
 ```
 
 已有本地克隆时直接进入仓库目录，不要重复克隆。安装前先确认目标目录就是 Dev Brain 仓库。
@@ -201,7 +201,7 @@ inbox/ 候选 → 证据核验与脱敏 → 人工确认后进入正式知识目
 
 ## 安全
 
-私有仓库也禁止保存密码、Token、Cookie、证书、私钥、生产数据、客户资料和未脱敏的聊天记录。项目知识必须脱敏，真实本机路径写入被 Git 忽略的 `local/project-map.md`。
+仓库禁止保存密码、Token、Cookie、证书、私钥、生产数据、客户资料和未脱敏的聊天记录。项目知识必须脱敏，真实本机路径写入被 Git 忽略的 `local/project-map.md`。
 
 其他安全约定：
 
@@ -218,7 +218,7 @@ Superpowers、OpenSpec、Spec Kit 等项目只作为理念参考，不是 Dev Br
 
 ## 当前项目状态
 
-- 当前范围：Codex-only；仓库托管在 GitHub 私有仓库，便于本人跨设备同步。
+- 当前范围：Codex-only；GitHub 公开仓库作为后续维护的主仓库。
 - macOS：安装、诊断、内容契约和敏感信息扫描已在本机验证。
 - Windows：脚本与 CI 测试入口已编写；真实 Windows 行为待修复并验证，暂不视为正式验收完成。
 - 路由样例：自动检查覆盖结构与契约；语言理解是否选对流程仍属于人工评估项。
