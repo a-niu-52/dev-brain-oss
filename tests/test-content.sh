@@ -82,6 +82,10 @@ for prompt in project-onboarding feature-development bug-diagnosis code-review k
   grep -q '可复制提示词' "$ROOT/prompts/$prompt.md"
 done
 grep -q '归档原因' "$ROOT/archive/README.md"
+grep -Fq 'if ($skillText -notmatch "(?m)^name: $([regex]::Escape($skill))\r?$")' "$ROOT/scripts/validate.ps1" || {
+  echo 'Windows Skill 名称校验必须兼容 CRLF' >&2
+  exit 1
+}
 for skill in code-review debugging git-delivery project-onboarding extract-project-knowledge targeted-verification cross-platform-contract; do
   file="$ROOT/skills/$skill/SKILL.md"
   test -f "$file" || { echo "缺少 Skill: $skill" >&2; exit 1; }

@@ -71,7 +71,7 @@ foreach ($skill in $skills) {
   $skillFile = Join-Path $Root "skills/$skill/SKILL.md"
   $skillText = Get-Content -LiteralPath $skillFile -Raw
   if ($skillText -notmatch '(?m)^---\s*\r?\n') { Fail "Skill 缺少 YAML 元数据: $skill" }
-  if ($skillText -notmatch "(?m)^name: $([regex]::Escape($skill))$") { Fail "Skill 名称与目录不一致: $skill" }
+  if ($skillText -notmatch "(?m)^name: $([regex]::Escape($skill))\r?$") { Fail "Skill 名称与目录不一致: $skill" }
   if ($skillText -notmatch '(?m)^description: .+') { Fail "Skill 缺少触发描述: $skill" }
 }
 foreach ($prompt in @('project-onboarding','feature-development','bug-diagnosis','code-review','knowledge-extraction','git-delivery')) {
