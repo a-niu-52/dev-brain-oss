@@ -7,7 +7,7 @@ $ScanRoot = if ($env:DEV_BRAIN_SCAN_ROOT) { [IO.Path]::GetFullPath($env:DEV_BRAI
 $Allowlist = if ($env:DEV_BRAIN_ALLOWLIST_FILE) { $env:DEV_BRAIN_ALLOWLIST_FILE } else { Join-Path $Root 'security/secret-scan-allowlist.txt' }
 $privateKeyPattern = 'BEGIN PRIVATE' + ' KEY'
 $required = @(
-  'README.md','context/README.md','context/collaboration-preferences.md','context/working-style.md',
+  'README.md','README.zh-CN.md','context/README.md','context/collaboration-preferences.md','context/working-style.md',
   'core/development-principles.md','core/coding-style.md','core/naming-conventions.md','core/git-workflow.md','core/testing-rules.md','core/security-boundaries.md','core/task-routing.md',
   'profiles/vue-typescript.md','profiles/flutter.md','profiles/java-spring-maven.md','profiles/multi-platform-bridge.md',
   'projects/README.md','projects/project-template.md','projects/mobile-web.md','projects/java-multimodule-backend.md','projects/multiplatform-container.md','projects/warehouse-flutter.md','projects/saas-flutter.md',

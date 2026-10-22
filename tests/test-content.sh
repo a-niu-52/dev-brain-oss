@@ -4,6 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 required_files='README.md
+README.zh-CN.md
 context/README.md
 context/collaboration-preferences.md
 context/working-style.md
@@ -64,7 +65,8 @@ grep -q '桥接协议矩阵' "$ROOT/profiles/multi-platform-bridge.md"
 grep -q '默认语言' "$ROOT/context/collaboration-preferences.md"
 grep -q 'skill-index.md' "$ROOT/adapters/codex/AGENTS.md"
 grep -q 'core/task-routing.md' "$ROOT/adapters/codex/AGENTS.md"
-grep -q '第一版只支持 Codex' "$ROOT/README.md"
+grep -q 'The first release supports Codex only' "$ROOT/README.md"
+grep -q '第一版只支持 Codex' "$ROOT/README.zh-CN.md"
 test -f "$ROOT/scripts/doctor.sh"
 test -f "$ROOT/scripts/doctor.ps1"
 grep -q 'doctor.sh' "$ROOT/scripts/update.sh"
