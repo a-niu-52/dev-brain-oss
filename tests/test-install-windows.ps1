@@ -64,7 +64,7 @@ try {
   if (-not $debugEntry.sourceHash -or -not $debugEntry.installedHash) { throw '更新后的清单缺少哈希' }
   & "$SourceCopy/scripts/uninstall.ps1"
   if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -notmatch '用户原有 Codex 规则') { throw '卸载删除了 Codex 原有规则' }
-  if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -match 'DEV-BRAIN:START') { throw '卸载未清理 Codex 受管区块' }
+  if ((Get-Content "$FakeHome/.codex/AGENTS.md" -Raw) -match 'DEV-BRAIN:(START|END)') { throw '卸载未清理 Codex 受管区块' }
 
   $env:DEV_BRAIN_HOME_DIR = $ConflictHome
   & "$SourceCopy/scripts/install.ps1"

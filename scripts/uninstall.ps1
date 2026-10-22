@@ -70,7 +70,7 @@ function Remove-ManagedBlock([string]$Target) {
   if ($item.LinkType) { Fail "规则文件不能是符号链接: $Target" }
   if ($item.PSIsContainer) { Fail "规则目标不是普通文件: $Target" }
   $text = Get-Content -LiteralPath $Target -Raw
-  $lines = $text -split "`r?`n", -1
+  $lines = $text -split "`r?`n"
   $output = New-Object 'System.Collections.Generic.List[string]'
   $inside = $false
   $starts = 0
