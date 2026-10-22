@@ -253,8 +253,15 @@ function Install-Exclusive([string]$Source, [string]$Target, [ValidateSet('junct
 function Save-Manifest {
   if ($PendingManifest.Count -eq 0) { return }
   $pendingTargets = @($PendingManifest | ForEach-Object { Resolve-ComparablePath ([string]$_.target) })
-  $all = @($ManifestEntries | Where-Object { $pendingTargets -notcontains (Resolve-ComparablePath ([string]$_.target)) }) + @($PendingManifest)
-  Write-AtomicText $ManifestPath (($all | ConvertTo-Json -Depth 5) + "`n")
+  $all = New-Object 'System.Collections.Generic.List[object]'
+  foreach ($entry in $ManifestEntries) {
+    if ($pendingTargets -notcontains (Resolve-ComparablePath ([string]$entry.target))) {
+      $all.Add($entry)
+    }
+  }
+  foreach ($entry in $PendingManifest) { $all.Add($entry) }
+  $json = ConvertTo-Json -InputObject ($all.ToArray()) -Depth 5
+  Write-AtomicText $ManifestPath ($json + "`n")
 }
 
 function Rollback {
