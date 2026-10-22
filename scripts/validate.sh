@@ -61,48 +61,48 @@ report_match() {
 scan_file() {
   file=$1
   rel=$(relative_path "$file")
-  failed=0
+  scan_failed=0
 
   case "$(basename "$file")" in
     .env|.env.*)
       [ "$(basename "$file")" = '.env.example' ] || {
         echo "环境文件不应进入知识库: $rel" >&2
-        failed=1
+        scan_failed=1
       }
       ;;
   esac
 
   if grep -Iq . "$file" 2>/dev/null; then
     if grep -nE -- "$private_key_pattern" "$file" >/dev/null 2>&1; then
-      report_match "$file" "$rel" 'private-key' || failed=1
+      report_match "$file" "$rel" 'private-key' || scan_failed=1
     fi
     if grep -nE -- 'ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|AKIA[0-9A-Z]{16}' "$file" >/dev/null 2>&1; then
-      report_match "$file" "$rel" 'token' || failed=1
+      report_match "$file" "$rel" 'token' || scan_failed=1
     fi
     if grep -nE -- '/Users/[A-Za-z0-9._-]+/|C:[\\\\]Users[\\\\][A-Za-z0-9._-]+[\\\\]' "$file" >/dev/null 2>&1; then
       echo "本机绝对路径不应进入知识库: $rel" >&2
-      failed=1
+      scan_failed=1
     fi
   fi
-  return "$failed"
+  return "$scan_failed"
 }
 
-failed=0
+validation_failed=0
 if [ "$SCAN_ROOT" = "$ROOT" ]; then
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
-    scan_file "$ROOT/$rel" || failed=1
+    scan_file "$ROOT/$rel" || validation_failed=1
   done <<EOF
 $(git -C "$ROOT" ls-files --cached --others --exclude-standard)
 EOF
 else
   while IFS= read -r file; do
     [ -n "$file" ] || continue
-    scan_file "$file" || failed=1
+    scan_file "$file" || validation_failed=1
   done <<EOF
-$(find "$SCAN_ROOT" -type f -print)
+$(find "$SCAN_ROOT" -type f -print | LC_ALL=C sort)
 EOF
 fi
 
-[ "$failed" -eq 0 ] || exit 1
+[ "$validation_failed" -eq 0 ] || exit 1
 echo '敏感信息和内容校验通过'

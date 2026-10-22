@@ -53,9 +53,9 @@ function Get-ManifestEntries {
 
 $ManifestEntries = Get-ManifestEntries
 
-function Find-ManifestEntry([string]$Target, [string]$Source) {
+function Find-ManifestEntry([string]$Target, [string]$Source, $Entries) {
   $targetPath = Resolve-ComparablePath $Target
-  foreach ($entry in $ManifestEntries) {
+  foreach ($entry in $Entries) {
     if ($entry.target -and (Resolve-ComparablePath ([string]$entry.target)) -eq $targetPath -and
         $entry.source -and (Resolve-ComparablePath ([string]$entry.source)) -eq (Resolve-ComparablePath $Source)) {
       return $entry
@@ -83,8 +83,8 @@ function Get-PathHash([string]$Path) {
   } finally { $sha.Dispose() }
 }
 
-function Test-ManagedCopy([string]$Source, [string]$Target) {
-  $entry = Find-ManifestEntry $Target $Source
+function Test-ManagedCopy([string]$Source, [string]$Target, $Entries) {
+  $entry = Find-ManifestEntry -Target $Target -Source $Source -Entries $Entries
   if ($null -eq $entry -or -not (Test-AnyPath $Target)) { return $false }
   $installedHash = if ($entry.installedHash) { [string]$entry.installedHash } else { [string]$entry.hash }
   if ($installedHash -and (Get-PathHash $Target) -ne $installedHash.ToLowerInvariant()) {
@@ -93,9 +93,9 @@ function Test-ManagedCopy([string]$Source, [string]$Target) {
   return [bool]$installedHash
 }
 
-function Check-ExclusiveTarget([string]$Source, [string]$Target) {
+function Check-ExclusiveTarget([string]$Source, [string]$Target, $Entries) {
   if (-not (Test-AnyPath $Target)) { return }
-  if (Test-SameLink $Source $Target -or (Test-ManagedCopy $Source $Target)) { return }
+  if ((Test-SameLink $Source $Target) -or (Test-ManagedCopy -Source $Source -Target $Target -Entries $Entries)) { return }
   Fail "目标存在且来源不一致: $Target"
 }
 
@@ -184,9 +184,9 @@ function Merge-ManagedBlock([string]$Source, [string]$Target) {
   Register-Action
 }
 
-function Install-Exclusive([string]$Source, [string]$Target, [ValidateSet('junction','symlink','copy')][string]$Mode) {
+function Install-Exclusive([string]$Source, [string]$Target, [ValidateSet('junction','symlink','copy')][string]$Mode, $Entries) {
   if (Test-SameLink $Source $Target) { Write-Output "已存在: $Target"; return }
-  $isManagedCopy = Test-ManagedCopy $Source $Target
+  $isManagedCopy = Test-ManagedCopy -Source $Source -Target $Target -Entries $Entries
   if ((Test-AnyPath $Target) -and -not $isManagedCopy) { Fail "目标存在且来源不一致或本机副本已修改: $Target" }
   if ($DryRun) {
     if ($isManagedCopy) { Write-Output "将检查并按需刷新副本: $Target" }
@@ -199,7 +199,7 @@ function Install-Exclusive([string]$Source, [string]$Target, [ValidateSet('junct
   $sourceHash = Get-PathHash $Source
 
   if ($isManagedCopy) {
-    $entry = Find-ManifestEntry $Target $Source
+    $entry = Find-ManifestEntry -Target $Target -Source $Source -Entries $Entries
     $installedHash = if ($entry.installedHash) { [string]$entry.installedHash } else { [string]$entry.hash }
     if ($installedHash -and (Get-PathHash $Target) -ne $installedHash.ToLowerInvariant()) { Fail "复制目标已被本机修改，未覆盖: $Target" }
     if ($entry.sourceHash -and ([string]$entry.sourceHash).ToLowerInvariant() -eq $sourceHash) {
@@ -285,15 +285,15 @@ function Rollback {
 if (-not (Test-Path -LiteralPath (Join-Path $Root 'adapters/codex/AGENTS.md') -PathType Leaf)) { Fail '缺少 Codex 适配入口' }
 
 $skills = @('code-review','debugging','git-delivery','project-onboarding','extract-project-knowledge','targeted-verification','cross-platform-contract')
-Check-ExclusiveTarget $Root (Join-Path $HomeDir '.dev-brain/repo')
+Check-ExclusiveTarget -Source $Root -Target (Join-Path $HomeDir '.dev-brain/repo') -Entries $ManifestEntries
 Check-MergeTarget (Join-Path $HomeDir '.codex/AGENTS.md')
-foreach ($skill in $skills) { Check-ExclusiveTarget (Join-Path $Root "skills/$skill") (Join-Path $HomeDir ".agents/skills/$skill") }
+foreach ($skill in $skills) { Check-ExclusiveTarget -Source (Join-Path $Root "skills/$skill") -Target (Join-Path $HomeDir ".agents/skills/$skill") -Entries $ManifestEntries }
 
 try {
   if ($DryRun) { Write-Output 'dry-run：未修改用户目录' }
-  Install-Exclusive $Root (Join-Path $HomeDir '.dev-brain/repo') junction
+  Install-Exclusive -Source $Root -Target (Join-Path $HomeDir '.dev-brain/repo') -Mode junction -Entries $ManifestEntries
   Merge-ManagedBlock (Join-Path $Root 'adapters/codex/AGENTS.md') (Join-Path $HomeDir '.codex/AGENTS.md')
-  foreach ($skill in $skills) { Install-Exclusive (Join-Path $Root "skills/$skill") (Join-Path $HomeDir ".agents/skills/$skill") symlink }
+  foreach ($skill in $skills) { Install-Exclusive -Source (Join-Path $Root "skills/$skill") -Target (Join-Path $HomeDir ".agents/skills/$skill") -Mode symlink -Entries $ManifestEntries }
   Save-Manifest
   foreach ($entry in $Journal | Where-Object { $_.Kind -eq 'REFRESH' -and $_.Backup }) {
     try { if (Test-AnyPath $entry.Backup) { Remove-Item -LiteralPath $entry.Backup -Recurse -Force } }
